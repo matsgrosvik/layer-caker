@@ -1,16 +1,26 @@
-import { sanityFetch } from "@/sanity/lib/live";
-import { POST_QUERY } from "@/sanity/lib/queries";
+import { client, sanityFetch } from "@/sanity/lib/client";
+import { Post } from "@/components/Post";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import { POST_QUERY, POSTS_SLUGS_QUERY } from "@/sanity/lib/queries";
 
+export async function generateStaticParams() {
+  const slugs = await client
+    .withConfig({ useCdn: false })
+    .fetch(POSTS_SLUGS_QUERY);
+
+  return slugs;
+}
 export default async function Page({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { data: post } = await sanityFetch({
+  const resolvedParams = await params;
+  const post = await sanityFetch({
     query: POST_QUERY,
-    params: await params,
+    params: resolvedParams,
+    tags: [`post:${resolvedParams.slug}`, "author", "category"],
+    revalidate: 3600,
   });
 
   if (!post) {
@@ -19,9 +29,7 @@ export default async function Page({
 
   return (
     <main className="container mx-auto grid grid-cols-1 gap-6 p-12">
-      <h1 className="text-4xl font-bold text-balance">{post?.title}</h1>
-      <hr />
-      <Link href="/posts">&larr; Return to index</Link>
+      <Post {...post} />
     </main>
   );
 }
